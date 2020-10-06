@@ -4,7 +4,7 @@ import csv
 import time
 
 timestr = time.strftime("%Y%m%d-%H%M%S")
-token = "d5f0c0d717e612e6516ed088dba198c9fc7eb408"
+token = ""
 orgs = {
     1: "Pivotal",
     2: "Pivotal-DataFabric",
