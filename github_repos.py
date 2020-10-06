@@ -27,8 +27,6 @@ print('Select a Org:\n'
       "7. GemXD\n",
       "8. Pivotal-gss\n",
       "9. Pivotal-cf\n",
-      "10. All\n",
-      "11. vmware-tanzu-private\n"
       )
 org = int(input().strip())
 filename = f'github-{orgs[org]}-{timestr}.csv'
@@ -42,7 +40,7 @@ def commit_info(repo):
     try:
         commit = repo.get_commits()[0]
         str_date = datetime.strptime(commit.last_modified, '%a, %d %b %Y %H:%M:%S %Z')
-        last_modified = f'{str_date.date()}-{str_date.time()}'
+        last_modified = f'{str_date.date()}'
 
         try:
             return f'{commit.author.name} ({commit.author.login})', last_modified
