@@ -1,5 +1,7 @@
+import calendar
 from datetime import datetime
 from github import Github
+from github import RateLimitExceededException
 import csv
 import time
 
@@ -35,6 +37,7 @@ github = Github(token)
 g = github.get_organization(orgs[org])
 
 print(f'Organization: {orgs[org]}')
+
 
 def commit_info(repo):
     try:
@@ -89,25 +92,37 @@ with open(filename, 'w') as f:
     repos = g.get_repos()
     count = repos.totalCount
     print(f"Number of repos: {count}")
-    
+    repo_num = 1
+
     for repo in repos:
-        print(f"Working on: {repo.name}\r",  end="", flush=True)
-        last_commit_author, last_commit_datetime = commit_info(repo)
-        top_contributor, second_top_contributor = contributor_info(repo)
-        forked = is_forked(repo)
+        try:
+            print(f"{repo_num}.Working on: {repo.name}\r", end="", flush=True)
+            last_commit_author, last_commit_datetime = commit_info(repo)
+            top_contributor, second_top_contributor = contributor_info(repo)
+            forked = is_forked(repo)
 
-        rows = [
-            repo.html_url,
-            repo.organization.name,
-            repo.name,
-            repo.private,
-            forked,
-            repo.archived,
-            last_commit_datetime,
-            last_commit_author,
-            top_contributor,
-            second_top_contributor,
-            repo.owner.name
-        ]
+            rows = [
+                repo.html_url,
+                repo.organization.name,
+                repo.name,
+                repo.private,
+                forked,
+                repo.archived,
+                last_commit_datetime,
+                last_commit_author,
+                top_contributor,
+                second_top_contributor,
+                repo.owner.name
+            ]
 
-        writer.writerow(rows)
+            writer.writerow(rows)
+            repo_num = repo_num + 1
+
+        except RateLimitExceededException:
+            rate_limit = github.get_rate_limit().core
+            reset_timestamp = calendar.timegm(rate_limit.reset.timetuple())
+            # add 10 seconds to be sure the rate limit has been reset
+            sleep_time = reset_timestamp - calendar.timegm(time.gmtime()) + 10
+            print(f"Github RateLimit Exceeded. Sleeping for {sleep_time}s\n")
+            time.sleep(sleep_time)
+            continue
