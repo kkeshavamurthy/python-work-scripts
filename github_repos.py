@@ -8,32 +8,33 @@ import time
 token = ""
 github = Github(token)
 
-orgs = {
-    1: "Pivotal",
-    2: "Pivotal-DataFabric",
-    3: "Pivotal-Data-Engineering",
-    4: "Pivotal-Field-Engineering",
-    5: "Pivotal-Gemfire",
-    6: "pivotalsoftware",
-    7: "GemXD",
-    8: "Pivotal-gss",
-    9: "Pivotal-cf",
-    10: "greenplum-db",
-    11: "gemfire"
-}
-
 actions = {
     1: "Repos",
-    2: "Members"
+    2: "Members",
+    3: "Teams"
 }
 
 
 def what_to_do():
+    orgs = {
+        1: "Pivotal",
+        2: "Pivotal-DataFabric",
+        3: "Pivotal-Data-Engineering",
+        4: "Tanzu-Solution-Engineering",
+        5: "Pivotal-Gemfire",
+        6: "pivotalsoftware",
+        7: "GemXD",
+        8: "Pivotal-gss",
+        9: "Pivotal-cf",
+        10: "greenplum-db",
+        11: "gemfire"
+    }
+
     print('Select a Org:\n'
           " 1. Pivotal\n",
           "2. Pivotal-DataFabric\n",
           "3. Pivotal-Data-Engineering\n",
-          "4. Pivotal-Field-Engineering\n",
+          "4. Tanzu-Solution-Engineering\n",
           "5. Pivotal-Gemfire\n",
           "6. Pivotalsoftware\n",
           "7. GemXD\n",
@@ -41,17 +42,25 @@ def what_to_do():
           "9. Pivotal-cf\n",
           "10.Greenplum-db\n",
           "11.Gemfire\n",
+          "99.ENTER YOUR OWN\n",
           )
     org = int(input().strip())
 
+    if org == 99:
+        print("Enter Org Name:\n")
+        org_name = str(input().strip())
+    else:
+        org_name = orgs[org]
+
     print('Select Action:\n'
           " 1. Read Repos\n",
-          "2. Get Members\n"
+          "2. Get Members\n",
+          "3. Get Teams\n"
           )
 
     action = int(input().strip())
 
-    return org, action
+    return org_name, action
 
 
 def setup_github(org, action):
@@ -59,10 +68,10 @@ def setup_github(org, action):
     global filename
 
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    filename = f'github-{orgs[org]}-{actions[action]}-{timestr}.csv'
+    filename = f'github-{org}-{actions[action]}-{timestr}.csv'
 
-    g = github.get_organization(orgs[org])
-    print(f'Organization: {orgs[org]}')
+    g = github.get_organization(org)
+    print(f'Organization: {org}')
 
 
 def commit_info(repo):
@@ -97,6 +106,22 @@ def is_forked(repo):
         return False
 
 
+def get_items(items):
+    item_list = []
+
+    try:
+        if items.totalCount == 0:
+            return "N/A"
+
+        for item in items:
+            item_list.append(item.name)
+
+        return ",".join(item_list)
+
+    except:
+        return "N/A"
+
+
 def backoff():
     rate_limit = github.get_rate_limit().core
     reset_timestamp = calendar.timegm(rate_limit.reset.timetuple())
@@ -121,7 +146,8 @@ def read_repos():
             'Last Commiter',
             'Top Committer',
             'Second Top Committer',
-            'Owner'
+            'Owner',
+            'Teams'
         ]
         writer.writerow(fields)
 
@@ -136,6 +162,7 @@ def read_repos():
                 last_commit_author, last_commit_datetime = commit_info(repo)
                 top_contributor, second_top_contributor = contributor_info(repo)
                 forked = is_forked(repo)
+                team_list = get_items(repo.get_teams())
 
                 rows = [
                     repo.html_url,
@@ -148,7 +175,8 @@ def read_repos():
                     last_commit_author,
                     top_contributor,
                     second_top_contributor,
-                    repo.owner.name
+                    repo.owner.name,
+                    team_list
                 ]
 
                 writer.writerow(rows)
@@ -188,6 +216,39 @@ def get_members():
                 continue
 
 
+def get_teams():
+    with open(filename, 'w') as f:
+        writer = csv.writer(f)
+
+        fields = [
+            'Team Name',
+            'Repos'
+        ]
+        writer.writerow(fields)
+
+        teams = g.get_teams()
+        print(f'Total Teams: {teams.totalCount}')
+
+        count = 1
+
+        for team in teams:
+            try:
+                print(f"{count}. Working on: {team.name}", end="\r", flush=True)
+                repo_list = get_items(team.get_repos())
+
+                rows = [
+                    team.name,
+                    repo_list,
+                ]
+
+                writer.writerow(rows)
+                count = count + 1
+
+            except RateLimitExceededException:
+                backoff()
+                continue
+
+
 if __name__ == "__main__":
 
     org, action = what_to_do()
@@ -198,3 +259,6 @@ if __name__ == "__main__":
 
     elif action == 2:
         get_members()
+
+    elif action == 3:
+        get_teams()
