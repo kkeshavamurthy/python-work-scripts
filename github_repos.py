@@ -11,11 +11,16 @@ github = Github(token)
 actions = {
     1: "Repos",
     2: "Members",
-    3: "Teams"
+    3: "Teams",
+    4: "Write"
 }
 
 
 def what_to_do():
+    global write_repo_list
+    global file_content
+    global commit_message
+
     orgs = {
         1: "Pivotal",
         2: "Pivotal-DataFabric",
@@ -55,10 +60,21 @@ def what_to_do():
     print('Select Action:\n'
           " 1. Read Repos\n",
           "2. Get Members\n",
-          "3. Get Teams\n"
+          "3. Get Teams\n",
+          "4. Write Repo\n"
           )
 
     action = int(input().strip())
+
+    if action == 4:
+        print('Enter content to update:\n')
+        file_content = str(input())
+
+        print('Enter Commit message:\n')
+        commit_message = str(input().strip())
+
+        print("Enter repos to update: (comma seperated)")
+        write_repo_list = input().split(',')
 
     return org_name, action
 
@@ -146,7 +162,6 @@ def read_repos():
             'Last Commiter',
             'Top Committer',
             'Second Top Committer',
-            'Owner',
             'Teams'
         ]
         writer.writerow(fields)
@@ -175,7 +190,6 @@ def read_repos():
                     last_commit_author,
                     top_contributor,
                     second_top_contributor,
-                    repo.owner.name,
                     team_list
                 ]
 
@@ -249,6 +263,36 @@ def get_teams():
                 continue
 
 
+def readme_exists(contents):
+    for content in contents:
+        if (content.type == 'file') and (content.name.lower() == "readme.md"):
+            return content.path
+
+    return None
+
+
+def update_file(write_repo_list, file_content):
+    for repo_name in write_repo_list:
+
+        repo = g.get_repo(repo_name)
+        contents = repo.get_contents("")
+        readme_path = readme_exists(contents)
+
+        if readme_path:
+            file = repo.get_contents(readme_path)
+            data = file.decoded_content.decode()
+            updated_data = file_content + data
+
+            print(f"Updating {readme_path} in {repo.name}...\n", end="")
+            repo.update_file(readme_path, commit_message, updated_data, file.sha)
+            print("Done.")
+
+        else:
+            print(f"Creating Readme.md in {repo.name}...", end="")
+            repo.create_file("Readme.md", commit_message, file_content)
+            print("Done.")
+
+
 if __name__ == "__main__":
 
     org, action = what_to_do()
@@ -262,3 +306,6 @@ if __name__ == "__main__":
 
     elif action == 3:
         get_teams()
+
+    elif action == 4:
+        update_file(write_repo_list, file_content)
