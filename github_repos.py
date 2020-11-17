@@ -74,7 +74,7 @@ def what_to_do():
         commit_message = str(input().strip())
 
         print("Enter repos to update: (comma seperated)")
-        write_repo_list = input().split(',')
+        write_repo_list = [x.strip for x in input().split(',')]
 
     return org_name, action
 
